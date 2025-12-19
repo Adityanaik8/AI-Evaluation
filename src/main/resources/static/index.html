@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Answer Evaluation System</title>
+
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(120deg, #667eea, #764ba2);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: #ffffff;
+            width: 700px;
+            max-width: 95%;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 15px;
+            display: block;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            font-size: 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #5a67d8;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .success {
+            background: #e6fffa;
+            border-left: 5px solid #38b2ac;
+        }
+
+        .error {
+            background: #ffe6e6;
+            border-left: 5px solid #e53e3e;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: #fff;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>AI Answer Evaluation</h2>
+
+    <label>Model Answer</label>
+    <textarea id="modelAnswer" rows="3"></textarea>
+
+    <label>Student Answer</label>
+    <textarea id="studentAnswer" rows="3"></textarea>
+
+    <button onclick="submitEvaluation()">Evaluate Answer</button>
+    <button onclick="loadHistory()">Show History</button>
+
+    <div id="result"></div>
+    <div id="history"></div>
+</div>
+
+<script>
+    function submitEvaluation() {
+
+        const modelAnswer = document.getElementById("modelAnswer").value.trim();
+        const studentAnswer = document.getElementById("studentAnswer").value.trim();
+        const resultDiv = document.getElementById("result");
+
+        if (!modelAnswer || !studentAnswer) {
+            resultDiv.style.display = "block";
+            resultDiv.className = "error";
+            resultDiv.innerHTML = "❌ Please fill both answers.";
+            return;
+        }
+
+        fetch("/api/evaluate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ modelAnswer, studentAnswer })
+        })
+        .then(res => res.json())
+        .then(data => {
+            resultDiv.style.display = "block";
+            resultDiv.className = "success";
+            resultDiv.innerHTML = `
+                <h3>Score: ${data.score}</h3>
+                <p><strong>Feedback:</strong> ${data.feedback}</p>
+            `;
+            loadHistory(); // auto-refresh history
+        })
+        .catch(() => {
+            resultDiv.style.display = "block";
+            resultDiv.className = "error";
+            resultDiv.innerHTML = "❌ Server error.";
+        });
+    }
+
+    function loadHistory() {
+        fetch("/api/history")
+            .then(res => res.json())
+            .then(data => {
+
+                let html = `
+                    <h3>Evaluation History</h3>
+                    <table>
+                        <tr>
+                            <th>ID</th>
+                            <th>Score</th>
+                            <th>Similarity</th>
+                            <th>Feedback</th>
+                            <th>Student Answer</th>
+                        </tr>
+                `;
+
+                data.forEach(e => {
+                    html += `
+                        <tr>
+                            <td>${e.id}</td>
+                            <td>${e.score}</td>
+                            <td>${e.similarity}%</td>
+                            <td>${e.feedback}</td>
+                            <td>${e.studentAnswer}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `</table>`;
+                document.getElementById("history").innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById("history").innerHTML =
+                    "<p style='color:red;'>Error loading history</p>";
+            });
+    }
+</script>
+
+</body>
+</html>
